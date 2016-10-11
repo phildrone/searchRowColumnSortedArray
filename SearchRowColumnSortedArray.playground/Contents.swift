@@ -1,6 +1,7 @@
 //: Playground - noun: a place where people can play
 
 import UIKit
+import XCTest
 
 /*
     In an interview yesterday I got asked a great algorithms
@@ -136,20 +137,115 @@ let a = [[ 10, 20, 21, 30, 40, 41],
 let x63I = searchArrayInc(63, in:a)
 let x63B = searchArrayBinary(63, in:a)
 
-let x75I = searchArrayInc(75, in:a)
-let x75B = searchArrayBinary(75, in:a)
 
-let y40I = searchArrayInc(40, in:a)
-let y40B = searchArrayBinary(40, in:a)
+// This was kind of an interesting case to see if I could get XCTestCases working in
+// a playground but in practice, the testrunner not displaying a failure next
+// to the test case is sort of underwhelming. Doing vanilla asserts is probably more
+// productive?
+//
+class MyTests : XCTestCase {
+    let smallExampleMatrix = [[ 10, 20, 21, 30, 40, 41],
+                              [ 11, 21, 22, 35, 50, 51],
+                              [ 50, 60, 61, 63, 70, 71],
+                              [ 51, 61, 80, 81, 82, 83],
+                              [ 52, 62, 90, 91, 98, 99]]
 
-let y83I = searchArrayInc(83, in: a)
-let y83B = searchArrayBinary(83, in: a)
+    override func setUp() {
+    }
+    
+    func testBeyondBounds() {
+        XCTAssertNil(searchArrayInc(1, in: smallExampleMatrix))
+        XCTAssertNil(searchArrayBinary(1, in: smallExampleMatrix))
+        XCTAssertNil(searchArrayInc(100, in: smallExampleMatrix))
+        XCTAssertNil(searchArrayBinary(100, in: smallExampleMatrix))
+    }
+    
+    func testArrayForSimpleRow() {
+        let a = [[ 1, 2, 3, 4, 5]]
+        XCTAssertEqual(searchArrayInc(3, in: a), 3)
+        XCTAssertEqual(searchArrayBinary(3, in: a), 3)
+        XCTAssertNil(searchArrayInc(100, in: a))
+        XCTAssertNil(searchArrayBinary(100, in: a))
+    }
+    
+    func testArrayForSimpleColumn() {
+        let a = [[ 1 ],[ 2 ],[ 3 ],[ 4 ],[ 5 ]]
+        XCTAssertEqual(searchArrayInc(3, in: a), 3)
+        XCTAssertEqual(searchArrayBinary(3, in: a), 3)
+        XCTAssertNil(searchArrayInc(100, in: a))
+        XCTAssertNil(searchArrayBinary(100, in: a))
+    }
+    
+    func testArraySmall() {
+        let x63I = searchArrayInc(63, in:smallExampleMatrix)
+        let x63B = searchArrayBinary(63, in:smallExampleMatrix)
+        XCTAssertEqual(x63I, 63)
+        XCTAssertEqual(x63B, 63)
+        
+        let x75I = searchArrayInc(75, in:smallExampleMatrix)
+        let x75B = searchArrayBinary(75, in:smallExampleMatrix)
+        XCTAssertNil(x75I)
+        XCTAssertNil(x75B)
+        
+        let y40I = searchArrayInc(40, in:smallExampleMatrix)
+        let y40B = searchArrayBinary(40, in:smallExampleMatrix)
+        XCTAssertEqual(y40I, 40)
+        XCTAssertEqual(y40B, 40)
+        
+        let y83I = searchArrayInc(83, in: smallExampleMatrix)
+        let y83B = searchArrayBinary(83, in: smallExampleMatrix)
+        XCTAssertEqual(y83I, 83)
+        XCTAssertEqual(y83B, 83)
+        
+        let upperLeftI = searchArrayInc(10, in: smallExampleMatrix)
+        let upperLeftB = searchArrayBinary(10, in:smallExampleMatrix)
+        XCTAssertEqual(upperLeftI, 10)
+        XCTAssertEqual(upperLeftB, 10)
+        
+        let upperRightI = searchArrayInc(41, in: smallExampleMatrix)
+        let upperRightB = searchArrayInc(41, in: smallExampleMatrix)
+        XCTAssertEqual(upperRightI, 41)
+        XCTAssertEqual(upperRightB, 41)
+        
+        let lowerRightI = searchArrayInc(99, in: smallExampleMatrix)
+        let lowerRightB = searchArrayInc(99, in: smallExampleMatrix)
+        XCTAssertEqual(lowerRightI, 99)
+        XCTAssertEqual(lowerRightB, 99)
+    }
+    
+    override func tearDown() {
+    }
+}
 
-let upperLeftI = searchArrayInc(10, in: a)
-let upperLeftB = searchArrayBinary(10, in: a)
 
-let upperRightI = searchArrayInc(41, in: a)
-let upperRightB = searchArrayInc(41, in: a)
+// XCTest code inside playgrounds is a little awkward and requires
+// some scaffolding
+//
+// This is a modified, updated version from:
+//  http://initwithstyle.net/2015/11/tdd-in-swift-playgrounds/
+//
+class PlaygroundTestObserver : NSObject, XCTestObservation {
+    @objc func testCase(_ testCase:XCTestCase, didFailWithDescription description: String, inFile filePath: String?, atLine lineNumber: UInt) {
+        print("Test failed on line \(lineNumber): \(testCase.name), \(description)")
+    }
+}
 
-let lowerRightI = searchArrayInc(99, in: a)
-let lowerRightB = searchArrayInc(99, in: a)
+let observer = PlaygroundTestObserver()
+let center = XCTestObservationCenter.shared()
+center.addTestObserver(observer)
+
+struct TestRunner {
+    
+    func run(_ testClass:AnyClass) {
+        print("Running test suite \(testClass)")
+        let tests = testClass as! XCTestCase.Type
+        let testSuite = tests.defaultTestSuite()
+        testSuite.run()
+        let run = testSuite.testRun as! XCTestSuiteRun
+        
+        print("Ran \(run.executionCount) tests in \(run.testDuration)s with \(run.totalFailureCount) failures")
+    }
+    
+}
+
+TestRunner().run(MyTests.self)//: [Next](@next)
