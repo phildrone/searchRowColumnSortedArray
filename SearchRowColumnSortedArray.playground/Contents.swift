@@ -103,11 +103,11 @@ func searchArrayBinary<Element:Comparable>(_ target:Element, in array:[[Element]
                 continue
             }
             // binary search
-            var start:Int = 0, end = i-1, k = i-1, kOver = i-1
+            var start:Int = 0, end = i-1, k = i-1, kOver = i
             while(start < end) {
-                print("start, end: \(start),\(end)")
                 steps += 1
                 k = (start + end)/2
+                print("start, end: \(start),\(end),\(k)")
                 if array[k][j] == target {
                     print("Found \(array[k][j]) in \(steps) steps")
                     return array[k][j]
@@ -117,8 +117,9 @@ func searchArrayBinary<Element:Comparable>(_ target:Element, in array:[[Element]
                 } else {
                     start = k + 1
                 }
+                //print("POST start, end: \(start),\(end),\(kOver)")
             }
-            i = kOver - 1 // progress up the column
+            i = kOver-1 // progress up the column
         } else {
             j += 1 // pivot
         }
@@ -140,3 +141,7 @@ let x75B = searchArrayBinary(75, in:a)
 
 let y40I = searchArrayInc(40, in:a)
 let y40B = searchArrayBinary(40, in:a)
+
+let y83I = searchArrayInc(83, in: a)
+let y83B = searchArrayBinary(83, in: a)
+
