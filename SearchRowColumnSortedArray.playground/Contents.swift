@@ -145,3 +145,11 @@ let y40B = searchArrayBinary(40, in:a)
 let y83I = searchArrayInc(83, in: a)
 let y83B = searchArrayBinary(83, in: a)
 
+let upperLeftI = searchArrayInc(10, in: a)
+let upperLeftB = searchArrayBinary(10, in: a)
+
+let upperRightI = searchArrayInc(41, in: a)
+let upperRightB = searchArrayInc(41, in: a)
+
+let lowerRightI = searchArrayInc(99, in: a)
+let lowerRightB = searchArrayInc(99, in: a)
