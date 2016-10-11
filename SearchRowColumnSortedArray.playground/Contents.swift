@@ -98,8 +98,8 @@ func searchArrayBinary<Element:Comparable>(_ target:Element, in array:[[Element]
             return array[i][j]
         } else if array[i][j] > target {
             // binary search won't work for i=1, since there's only 1 element remaining.
-            if (i == 1) {
-                i = 0
+            if (i <= 1) {
+                i -= 1
                 continue
             }
             // binary search
