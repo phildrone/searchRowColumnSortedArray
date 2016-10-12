@@ -46,10 +46,7 @@ import XCTest
     smaller (codewise), but it didn't turn out that much smaller (see: searchArraySwift)
     For this solution I pulled out binarySearch, as well as a column routine
     and extended them to array. This has the added advantage of doing a binary search
-    up the first column initially, but after that we advance up the column by
-    1 like in the other solutions. There's no point to advancing other columns
-    by binary search, at least the way I implemented it, since we need to check
-    the adjacent column to see if it too is larger than our target.
+    up the first column initially.
  */
 
 func searchArrayInc<Element:Comparable>(_ target:Element, in array:[[Element]]) -> Element? {
