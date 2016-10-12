@@ -41,6 +41,15 @@ import XCTest
  
     My little array test cases all do worse, but I think if we fed it
     a really large one, it would improve.
+ 
+    UPDATE: I added a more swift-ish solution. Which I thought might be
+    smaller (codewise), but it didn't turn out that much smaller (see: searchArraySwift)
+    For this solution I pulled out binarySearch, as well as a column routine
+    and extended them to array. This has the added advantage of doing a binary search
+    up the first column initially, but after that we advance up the column by
+    1 like in the other solutions. There's no point to advancing other columns
+    by binary search, at least the way I implemented it, since we need to check
+    the adjacent column to see if it too is larger than our target.
  */
 
 func searchArrayInc<Element:Comparable>(_ target:Element, in array:[[Element]]) -> Element? {
@@ -93,10 +102,11 @@ func searchArrayBinary<Element:Comparable>(_ target:Element, in array:[[Element]
     while ( i >= 0 && i < n && j >= 0 && j < m ) {
         steps += 1
         print("\(i),\(j) : \(array[i][j])")
-        // if it's larger come up the column
         if array[i][j] == target {
             print("Found \(array[i][j]) in \(steps) steps")
             return array[i][j]
+
+        // if it's larger come up the column
         } else if array[i][j] > target {
             // binary search won't work for i=1, since there's only 1 element remaining.
             if (i <= 1) {
@@ -129,6 +139,104 @@ func searchArrayBinary<Element:Comparable>(_ target:Element, in array:[[Element]
     return nil
 }
 
+
+// Lastly lets try and solve this via a little more Swift-like approach.
+// The above is more or less something you could almost write in C
+
+// what I want to do is use functional programming's suite of functions
+// as much as possible. This means operating on rows and columns. And unfortunatey
+// there's no way to access a column cleanly in swift (it's not contiguous memory
+// so I think they're trying to tell me something, but we'll forge on).
+// So, sadly this array[0..<array.count][1] does not work, it just returns the first
+// row.
+//
+// We'll extend array to add both a binary search and a column accessor.
+extension Array where Element:Collection {
+    public func column(_ position:Element.Index) -> [Element.Iterator.Element] {
+        return self.map { $0[position] }
+    }
+}
+
+// this returns either element or the index of the element that is the next smaller
+extension Array where Element:Comparable {
+    
+    // binary search
+    func searchBinary(_ target:Element) -> Index {
+        //print("----")
+        var start:Index = 0, end = count-1, k = end, kOver = count
+        var steps:Int = 1
+        while(start <= end) {
+            k = (start + end)/2
+            //print("start, end: \(start),\(end),\(k)")
+            if self[k] == target {
+                //print("Found \(self[k]) in \(steps) steps")
+                return k
+            } else if self[k] > target {
+                end = k - 1
+                kOver = k
+            } else {
+                start = k + 1
+            }
+            //print("POST start, end: \(start),\(end),\(kOver)")
+            steps += 1
+        }
+        return kOver-1 < 0 ? 0 : kOver-1
+    }
+}
+
+//
+// Now we'll try binary searching in both directions. The first step will be to slice off
+// excess rows and columns which are beyond our target by binary searching on the first row
+// and column. Then we will alternately search rows and columns as above.
+func searchArraySwift<Element:Comparable>(_ target:Element, in array:Array<Array<Element>>) -> Element? {
+    let rowMax = array.count
+    if (rowMax == 0) { return nil }
+    let colMax = array[0].count
+    if (colMax == 0) { return nil }
+
+    // reality checks, target must be between the 0,0 and n,m values
+    if (target < array[0][0]) { return nil }
+    if (target > array[rowMax-1][colMax-1]) { return nil }
+    
+    print("\(rowMax),\(colMax) max")
+    
+    var i:Int, j:Int = 0
+    var steps:Int = 0
+    
+    // binary search up the first column to find the starting
+    // point.
+    let col = array.column(0)[0..<rowMax]
+    // need to figure out how to extend both Array and ArraySlice
+    // but for now this'll do
+    i = Array(col).searchBinary(target)
+    while ( i >= 0 && i < rowMax && j >= 0 && j < colMax ) {
+        steps += 1
+        print("\(i),\(j) : \(array[i][j])")
+        if array[i][j] == target {
+            print("Found \(array[i][j]) in \(steps) steps")
+            return array[i][j]
+            
+        // if it's larger or the next value in the row is larger so we can't advance
+        // down the row, come up the column,
+        } else if array[i][j] > target || (j+1 < colMax && array[i][j+1] > target) {
+            i -= 1
+        // if it's smaller look down the row
+        } else if j+1 < colMax {
+            let jtmp = Array(array[i][j+1...colMax-1]).searchBinary(target)
+            print("\(j) + \(jtmp) + 1")
+            j += jtmp + 1
+        } else {
+            j += 1
+        }
+        //print("POST \(i),\(j) : \(array[i][j])")
+    }
+    print("Wahh wahh, not found in \(steps) steps")
+    return nil
+}
+
+// end
+
+
 let a = [[ 10, 20, 21, 30, 40, 41],
          [ 11, 21, 22, 35, 50, 51],
          [ 50, 60, 61, 63, 70, 71],
@@ -136,7 +244,7 @@ let a = [[ 10, 20, 21, 30, 40, 41],
          [ 52, 62, 90, 91, 98, 99]]
 let x63I = searchArrayInc(63, in:a)
 let x63B = searchArrayBinary(63, in:a)
-
+let x63S = searchArraySwift(63, in:a)
 
 // This was kind of an interesting case to see if I could get XCTestCases working in
 // a playground but in practice, the testrunner not displaying a failure next
@@ -156,61 +264,84 @@ class MyTests : XCTestCase {
     func testBeyondBounds() {
         XCTAssertNil(searchArrayInc(1, in: smallExampleMatrix))
         XCTAssertNil(searchArrayBinary(1, in: smallExampleMatrix))
+        XCTAssertNil(searchArraySwift(1, in: smallExampleMatrix))
         XCTAssertNil(searchArrayInc(100, in: smallExampleMatrix))
         XCTAssertNil(searchArrayBinary(100, in: smallExampleMatrix))
+        XCTAssertNil(searchArraySwift(100, in: smallExampleMatrix))
     }
     
     func testArrayForSimpleRow() {
         let a = [[ 1, 2, 3, 4, 5]]
         XCTAssertEqual(searchArrayInc(3, in: a), 3)
         XCTAssertEqual(searchArrayBinary(3, in: a), 3)
+        XCTAssertEqual(searchArraySwift(3, in: a), 3)
         XCTAssertNil(searchArrayInc(100, in: a))
         XCTAssertNil(searchArrayBinary(100, in: a))
+        XCTAssertNil(searchArraySwift(100, in: a))
     }
     
     func testArrayForSimpleColumn() {
         let a = [[ 1 ],[ 2 ],[ 3 ],[ 4 ],[ 5 ]]
-        XCTAssertEqual(searchArrayInc(3, in: a), 3)
-        XCTAssertEqual(searchArrayBinary(3, in: a), 3)
+        var x = searchArrayInc(3, in: a)
+        XCTAssertEqual(x, 3)
+        x = searchArrayBinary(3, in: a)
+        XCTAssertEqual(x, 3)
+        x = searchArraySwift(3, in: a)
+        XCTAssertEqual(x, 3)
         XCTAssertNil(searchArrayInc(100, in: a))
         XCTAssertNil(searchArrayBinary(100, in: a))
+        XCTAssertNil(searchArraySwift(100, in: a))
     }
     
     func testArraySmall() {
-        let x63I = searchArrayInc(63, in:smallExampleMatrix)
-        let x63B = searchArrayBinary(63, in:smallExampleMatrix)
-        XCTAssertEqual(x63I, 63)
-        XCTAssertEqual(x63B, 63)
+        var x = searchArrayInc(63, in:smallExampleMatrix)
+        XCTAssertEqual(x, 63)
+        x = searchArrayBinary(63, in:smallExampleMatrix)
+        XCTAssertEqual(x, 63)
+        x = searchArraySwift(63, in:smallExampleMatrix)
+        XCTAssertEqual(x, 63)
         
-        let x75I = searchArrayInc(75, in:smallExampleMatrix)
-        let x75B = searchArrayBinary(75, in:smallExampleMatrix)
-        XCTAssertNil(x75I)
-        XCTAssertNil(x75B)
+        x = searchArrayInc(75, in:smallExampleMatrix)
+        XCTAssertNil(x)
+        x = searchArrayBinary(75, in:smallExampleMatrix)
+        XCTAssertNil(x)
+        x = searchArraySwift(75, in:smallExampleMatrix)
+        XCTAssertNil(x)
         
-        let y40I = searchArrayInc(40, in:smallExampleMatrix)
-        let y40B = searchArrayBinary(40, in:smallExampleMatrix)
-        XCTAssertEqual(y40I, 40)
-        XCTAssertEqual(y40B, 40)
+        x = searchArrayInc(40, in:smallExampleMatrix)
+        XCTAssertEqual(x, 40)
+        x = searchArrayBinary(40, in:smallExampleMatrix)
+        XCTAssertEqual(x, 40)
+        x = searchArraySwift(40, in:smallExampleMatrix)
+        XCTAssertEqual(x, 40)
         
-        let y83I = searchArrayInc(83, in: smallExampleMatrix)
-        let y83B = searchArrayBinary(83, in: smallExampleMatrix)
-        XCTAssertEqual(y83I, 83)
-        XCTAssertEqual(y83B, 83)
+        x = searchArrayInc(83, in: smallExampleMatrix)
+        XCTAssertEqual(x, 83)
+        x = searchArrayBinary(83, in: smallExampleMatrix)
+        XCTAssertEqual(x, 83)
+        x = searchArraySwift(83, in: smallExampleMatrix)
+        XCTAssertEqual(x, 83)
         
         let upperLeftI = searchArrayInc(10, in: smallExampleMatrix)
-        let upperLeftB = searchArrayBinary(10, in:smallExampleMatrix)
         XCTAssertEqual(upperLeftI, 10)
+        let upperLeftB = searchArrayBinary(10, in:smallExampleMatrix)
         XCTAssertEqual(upperLeftB, 10)
+        let upperLeftS = searchArraySwift(10, in:smallExampleMatrix)
+        XCTAssertEqual(upperLeftS, 10)
         
         let upperRightI = searchArrayInc(41, in: smallExampleMatrix)
-        let upperRightB = searchArrayInc(41, in: smallExampleMatrix)
         XCTAssertEqual(upperRightI, 41)
+        let upperRightB = searchArrayBinary(41, in: smallExampleMatrix)
         XCTAssertEqual(upperRightB, 41)
+        let upperRightS = searchArraySwift(41, in: smallExampleMatrix)
+        XCTAssertEqual(upperRightS, 41)
         
         let lowerRightI = searchArrayInc(99, in: smallExampleMatrix)
-        let lowerRightB = searchArrayInc(99, in: smallExampleMatrix)
         XCTAssertEqual(lowerRightI, 99)
+        let lowerRightB = searchArrayBinary(99, in: smallExampleMatrix)
         XCTAssertEqual(lowerRightB, 99)
+        let lowerRightS = searchArraySwift(99, in: smallExampleMatrix)
+        XCTAssertEqual(lowerRightS, 99)
     }
     
     override func tearDown() {
@@ -248,4 +379,5 @@ struct TestRunner {
     
 }
 
-TestRunner().run(MyTests.self)//: [Next](@next)
+TestRunner().run(MyTests.self)
+//: [Next](@next)
