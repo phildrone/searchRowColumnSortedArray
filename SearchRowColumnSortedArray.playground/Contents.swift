@@ -42,11 +42,27 @@ import XCTest
     My little array test cases all do worse, but I think if we fed it
     a really large one, it would improve.
  
-    UPDATE: I added a more swift-ish solution. Which I thought might be
+    12-Oct-2016: Lastly I added a more swift-ish solution. Which I thought might be
     smaller (codewise), but it didn't turn out that much smaller (see: searchArraySwift)
     For this solution I pulled out binarySearch, as well as a column routine
     and extended them to array. This has the added advantage of doing a binary search
     up the first column initially.
+ 
+    Update: I adjusted searchArraySwift to use binary search in both directions (on
+    the rows and the columns). The key is the new finishUnder parameter. When searching
+    up columns we want the binary search to return the index of the match or the the 
+    index of the row with a value under the target. When searching along the row we want
+    binary search to return a value greater than (or over) the target. The under-target
+    column are, by definition ALL under the target, so by going to the over-target column
+    and searching up, we can potentially skip a lot of rows that are also over-target
+    since everything to the right will also be over-target as well. I like it! Very cool!
+ 
+    The swifty version does a lot of inefficient column and row extraction. But it
+    really helped me think about the problem better. If I was doing this in production
+    and this was a preformance bottleneck, I'd rewrite the swift version into the binary
+    routine which I should rewrite to be a binary search in both directions.
+ 
+    Fun problem!
  */
 
 func searchArrayInc<Element:Comparable>(_ target:Element, in array:[[Element]]) -> Element? {
@@ -84,10 +100,8 @@ func searchArrayInc<Element:Comparable>(_ target:Element, in array:[[Element]]) 
 // together for the playground.
 func searchArrayBinary<Element:Comparable>(_ target:Element, in array:[[Element]]) -> Element? {
     let n = array.count
-    print(n)
     if (n == 0) { return nil }
     let m = array[0].count
-    print(m)
     if (m == 0) { return nil }
     
     // reality checks, target must be between the 0,0 and n,m values
@@ -158,7 +172,7 @@ extension Array where Element:Collection {
 extension Array where Element:Comparable {
     
     // binary search
-    func searchBinary(_ target:Element) -> Index {
+    func searchBinary(_ target:Element, finishUnder:Bool = true) -> Index {
         //print("----")
         var start:Index = 0, end = count-1, k = end, kOver = count
         var steps:Int = 1
@@ -177,7 +191,10 @@ extension Array where Element:Comparable {
             //print("POST start, end: \(start),\(end),\(kOver)")
             steps += 1
         }
-        return kOver-1 < 0 ? 0 : kOver-1
+        if (finishUnder) {
+            return kOver-1 < 0 ? 0 : kOver-1
+        }
+        return kOver == count ? kOver-1 : kOver
     }
 }
 
@@ -216,10 +233,12 @@ func searchArraySwift<Element:Comparable>(_ target:Element, in array:Array<Array
         // if it's larger or the next value in the row is larger so we can't advance
         // down the row, come up the column,
         } else if array[i][j] > target || (j+1 < colMax && array[i][j+1] > target) {
-            i -= 1
+            let col = array.column(j)[0..<i]
+            i = Array(col).searchBinary(target, finishUnder:true)
+
         // if it's smaller look down the row
         } else if j+1 < colMax {
-            let jtmp = Array(array[i][j+1...colMax-1]).searchBinary(target)
+            let jtmp = Array(array[i][j+1...colMax-1]).searchBinary(target, finishUnder:false)
             print("\(j) + \(jtmp) + 1")
             j += jtmp + 1
         } else {
@@ -237,11 +256,21 @@ func searchArraySwift<Element:Comparable>(_ target:Element, in array:Array<Array
 let a = [[ 10, 20, 21, 30, 40, 41],
          [ 11, 21, 22, 35, 50, 51],
          [ 50, 60, 61, 63, 70, 71],
-         [ 51, 61, 80, 81, 82, 83],
-         [ 52, 62, 90, 91, 98, 99]]
+         [ 52, 61, 80, 81, 82, 83],
+         [ 53, 62, 90, 91, 98, 99]]
 let x63I = searchArrayInc(63, in:a)
 let x63B = searchArrayBinary(63, in:a)
-let x63S = searchArraySwift(63, in:a)
+let x51S = searchArraySwift(51, in:a)
+
+// binary search test case
+// Searching for 30, we'll binary search down the last row.
+// If we finish under, we'll stop at 26 and go up one column
+// at a time. If we finish over, we'll stop at 60 and go up to
+// 30 in one step.
+let c = [[ 10, 20, 30 ],
+         [ 15, 25, 35 ],
+         [ 17, 26, 60 ]]
+let xc = searchArraySwift(30, in:c)
 
 // This was kind of an interesting case to see if I could get XCTestCases working in
 // a playground but in practice, the testrunner not displaying a failure next
